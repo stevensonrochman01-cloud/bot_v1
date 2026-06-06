@@ -228,12 +228,18 @@ def reload_pending_jobs(application: Application) -> None:
         )
 
 
+async def on_startup(application: Application) -> None:
+    reload_pending_jobs(application)
+    if not scheduler.running:
+        scheduler.start()
+
+
 def build_application() -> Application:
     if not settings.bot_token:
         raise ValueError("BOT_TOKEN is missing. Add it to your environment or .env file.")
 
     storage.initialize()
-    application = ApplicationBuilder().token(settings.bot_token).build()
+    application = ApplicationBuilder().token(settings.bot_token).post_init(on_startup).build()
 
     schedule_handler = ConversationHandler(
         entry_points=[CommandHandler("schedule", schedule_start)],
@@ -254,13 +260,10 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("list", list_messages))
     application.add_handler(CommandHandler("delete", delete_message))
     application.add_handler(CommandHandler("cancel", cancel))
-
-    reload_pending_jobs(application)
     return application
 
 
 def main() -> None:
     application = build_application()
-    scheduler.start()
     logger.info("Bot is running with polling.")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
