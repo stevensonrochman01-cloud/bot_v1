@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, create_engine, select, update
+from sqlalchemy import BigInteger, DateTime, Integer, String, Text, create_engine, select, text, update
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from .config import get_settings
@@ -19,8 +19,8 @@ class ScheduledMessage(Base):
     __tablename__ = "scheduled_messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    chat_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     scheduled_time_utc: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
@@ -39,6 +39,20 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 class MessageStorage:
     def initialize(self) -> None:
         Base.metadata.create_all(engine)
+        self._upgrade_integer_columns()
+
+    def _upgrade_integer_columns(self) -> None:
+        if not settings.database_url.startswith("postgresql"):
+            return
+
+        statements = [
+            "ALTER TABLE scheduled_messages ALTER COLUMN chat_id TYPE BIGINT",
+            "ALTER TABLE scheduled_messages ALTER COLUMN user_id TYPE BIGINT",
+        ]
+
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
 
     def create_message(
         self,
