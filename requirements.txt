@@ -1,0 +1,5 @@
+python-telegram-bot==21.11.1
+APScheduler==3.11.2
+SQLAlchemy==2.0.41
+python-dotenv==1.0.1
+psycopg[binary]==3.2.9
